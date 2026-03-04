@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>固態物理互動模擬器</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#07090f; --s1:#0d1120; --s2:#111827; --s3:#162033;
+  --bd:#1e2d47; --bd2:#2a3f5f;
+  --cy:#00e5ff; --pu:#a78bfa; --or:#fb923c; --gr:#34d399;
+  --re:#f87171; --ye:#fbbf24; --pk:#f472b6; --bl:#60a5fa;
+  --tx:#e2e8f0; --dm:#64748b;
+  font-size:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--tx);font-family:'Courier New',Courier,monospace;min-height:100vh;overflow-x:hidden}
+
+/* ── TOP BAR ── */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+  padding:14px 24px;border-bottom:1px solid var(--bd);
+  background:rgba(13,17,32,0.95);position:sticky;top:0;z-index:100;
+}
+.topbar-title{font-size:1.15rem;font-weight:900;letter-spacing:-0.01em;
+  background:linear-gradient(90deg,var(--cy),var(--pu));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.topbar-sub{font-size:0.6rem;color:var(--dm);margin-top:2px;letter-spacing:0.15em}
+.tag{display:inline-block;padding:2px 8px;border-radius:3px;font-size:0.58rem;font-weight:700;
+  letter-spacing:0.1em;text-transform:uppercase;border:1px solid;margin:2px}
+.tag-cy{border-color:rgba(0,229,255,0.4);color:var(--cy);background:rgba(0,229,255,0.07)}
+.tag-pu{border-color:rgba(167,139,250,0.4);color:var(--pu);background:rgba(167,139,250,0.07)}
+.tag-gr{border-color:rgba(52,211,153,0.4);color:var(--gr);background:rgba(52,211,153,0.07)}
+.tag-or{border-color:rgba(251,146,60,0.4);color:var(--or);background:rgba(251,146,60,0.07)}
+.tag-ye{border-color:rgba(251,191,36,0.4);color:var(--ye);background:rgba(251,191,36,0.07)}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--bd);background:var(--s1);overflow-x:auto}
+.tabs::-webkit-scrollbar{height:3px}.tabs::-webkit-scrollbar-thumb{background:var(--bd2)}
+.tabbt{padding:12px 20px;font:700 0.7rem 'Courier New',monospace;letter-spacing:0.07em;
+  border:none;border-bottom:2px solid transparent;background:transparent;color:var(--dm);
+  cursor:pointer;white-space:nowrap;transition:all 0.2s;position:relative;top:1px}
+.tabbt:hover{color:var(--tx)}
+.tabbt.on{color:var(--cy);border-bottom-color:var(--cy)}
+
+/* ── PANELS ── */
+.panel{display:none;padding:24px;animation:fin 0.2s ease}
+.panel.on{display:block}
+@keyframes fin{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+/* ── LAYOUT ── */
+.lay2{display:grid;grid-template-columns:290px 1fr;gap:20px;align-items:start}
+.lay3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.lay2e{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.lay2{grid-template-columns:1fr}.lay3{grid-template-columns:1fr 1fr}.ctrl{position:static!important}}
+@media(max-width:560px){.lay3,.lay2e{grid-template-columns:1fr}}
+
+/* ── CONTROL PANEL ── */
+.ctrl{
+  background:var(--s1);border:1px solid var(--bd);border-radius:10px;
+  padding:18px 16px;display:flex;flex-direction:column;gap:16px;
+  position:sticky;top:62px;max-height:calc(100vh - 80px);overflow-y:auto;
+}
+.ctrl::-webkit-scrollbar{width:3px}.ctrl::-webkit-scrollbar-thumb{background:var(--bd2)}
+.sec{font-size:0.57rem;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;
+  color:var(--cy);padding-bottom:7px;border-bottom:1px solid var(--bd);margin-bottom:2px}
+
+/* Slider */
+.slg{display:flex;flex-direction:column;gap:5px}
+.slg-top{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.slg-name{font-size:0.68rem;color:var(--dm)}
+.slv{font-size:0.7rem;font-weight:700;background:rgba(0,229,255,0.07);
+  border:1px solid rgba(0,229,255,0.18);border-radius:3px;padding:1px 7px;
+  color:var(--cy);min-width:76px;text-align:right;white-space:nowrap}
+.slv.pu{color:var(--pu);background:rgba(167,139,250,0.07);border-color:rgba(167,139,250,0.18)}
+.slv.or{color:var(--or);background:rgba(251,146,60,0.07);border-color:rgba(251,146,60,0.18)}
+.slv.gr{color:var(--gr);background:rgba(52,211,153,0.07);border-color:rgba(52,211,153,0.18)}
+.hint{font-size:0.57rem;color:var(--dm);margin-top:-2px}
+input[type=range]{
+  -webkit-appearance:none;width:100%;height:3px;background:var(--bd2);
+  border-radius:2px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+  background:var(--cy);box-shadow:0 0 6px rgba(0,229,255,0.5);
+  cursor:pointer;transition:transform 0.1s}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.3)}
+input[type=range].pu::-webkit-slider-thumb{background:var(--pu);box-shadow:0 0 6px rgba(167,139,250,0.5)}
+input[type=range].or::-webkit-slider-thumb{background:var(--or);box-shadow:0 0 6px rgba(251,146,60,0.5)}
+input[type=range].gr::-webkit-slider-thumb{background:var(--gr);box-shadow:0 0 6px rgba(52,211,153,0.5)}
+
+/* Metrics */
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.mbox{background:var(--s2);border:1px solid var(--bd);border-radius:6px;padding:8px 10px}
+.mlb{font-size:0.55rem;color:var(--dm);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:2px}
+.mv{font-size:0.78rem;font-weight:700;color:var(--cy)}
+.mv.pu{color:var(--pu)}.mv.or{color:var(--or)}.mv.gr{color:var(--gr)}.mv.ye{color:var(--ye)}.mv.re{color:var(--re)}
+
+/* Physics note */
+.pnote{background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.12);
+  border-radius:7px;padding:11px 13px;font-size:0.63rem;line-height:1.7;color:var(--dm)}
+.pnote .f{font-family:'Courier New',monospace;color:var(--gr);font-size:0.67rem;
+  margin:3px 0;padding:3px 7px;background:rgba(0,0,0,0.3);border-radius:3px;
+  border-left:2px solid var(--pu);display:block}
+
+/* ── CHART CARD ── */
+.cc{background:var(--s1);border:1px solid var(--bd);border-radius:10px;padding:16px 18px 12px;
+  display:flex;flex-direction:column;gap:6px;transition:border-color 0.2s}
+.cc:hover{border-color:var(--bd2)}
+.ct{font-size:0.82rem;font-weight:700;color:var(--tx)}
+.cs{font-size:0.58rem;color:var(--dm);letter-spacing:0.07em}
+.cw{position:relative;height:230px}
+.cw canvas{position:absolute;inset:0;width:100%!important;height:100%!important}
+.cc.tall .cw{height:290px}
+.cc.med .cw{height:190px}
+
+/* Toggle buttons */
+.tg-row{display:flex;gap:5px;flex-wrap:wrap}
+.tgb{padding:3px 9px;border-radius:4px;font-size:0.6rem;font-weight:700;
+  cursor:pointer;border:1px solid var(--bd2);background:transparent;color:var(--dm);
+  transition:all 0.12s;font-family:'Courier New',monospace}
+.tgb:hover{border-color:var(--tx);color:var(--tx)}
+.tgb.cy{background:rgba(0,229,255,0.1);color:var(--cy);border-color:var(--cy)}
+.tgb.pu{background:rgba(167,139,250,0.1);color:var(--pu);border-color:var(--pu)}
+.tgb.gr{background:rgba(52,211,153,0.1);color:var(--gr);border-color:var(--gr)}
+.tgb.or{background:rgba(251,146,60,0.1);color:var(--or);border-color:var(--or)}
+.tgb.ye{background:rgba(251,191,36,0.1);color:var(--ye);border-color:var(--ye)}
+
+/* Section header */
+.sh{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.sh-n{font-size:1.5rem;font-weight:900;color:var(--bd2)}
+.sh h2{font-size:0.95rem;font-weight:700;color:var(--tx)}
+.sh p{font-size:0.6rem;color:var(--dm);margin-top:2px}
+
+/* Anim */
+.anim-bar{display:flex;gap:6px;align-items:center}
+.abt{width:32px;height:32px;border-radius:7px;border:1px solid var(--bd);background:var(--s2);
+  color:var(--tx);font-size:0.9rem;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;transition:all 0.15s;flex-shrink:0}
+.abt:hover{border-color:var(--cy);color:var(--cy)}
+.abt.on{border-color:var(--gr);color:var(--gr);background:rgba(52,211,153,0.08)}
+
+/* Fermi canvas */
+.fcanv{background:var(--s2);border:1px solid var(--bd);border-radius:7px;overflow:hidden;height:230px}
+.fcanv canvas{width:100%!important;height:100%!important;display:block}
+
+/* Temp list */
+.tlist{display:flex;flex-direction:column;gap:5px;max-height:240px;overflow-y:auto}
+.tlist::-webkit-scrollbar{width:3px}.tlist::-webkit-scrollbar-thumb{background:var(--bd2)}
+.titem{display:flex;align-items:center;gap:7px;background:var(--s2);border:1px solid var(--bd);
+  border-radius:6px;padding:6px 9px;transition:border-color 0.15s}
+.titem:hover{border-color:var(--bd2)}
+.tdot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.tname{font-size:0.7rem;font-weight:700;flex:1}
+.tkbt{font-size:0.58rem;color:var(--dm)}
+.tbtn{width:20px;height:20px;border-radius:50%;border:1px solid var(--bd);background:transparent;
+  color:var(--dm);font-size:0.6rem;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;transition:all 0.12s;flex-shrink:0}
+.tbtn:hover{background:rgba(255,255,255,0.07);color:var(--tx)}
+
+/* small btn */
+.sbt{padding:4px 10px;border-radius:5px;font-size:0.61rem;font-weight:700;
+  cursor:pointer;border:1px solid var(--bd2);background:transparent;color:var(--dm);
+  font-family:'Courier New',monospace;transition:all 0.13s}
+.sbt:hover{border-color:var(--cy);color:var(--cy)}
+.sbt.red:hover{border-color:var(--re);color:var(--re)}
+
+/* Row of small buttons */
+.sbt-row{display:flex;gap:5px;flex-wrap:wrap}
+
+/* FD anim badge */
+.abadge{position:absolute;top:10px;right:12px;background:rgba(52,211,153,0.12);
+  border:1px solid rgba(52,211,153,0.3);border-radius:5px;padding:2px 9px;
+  font-size:0.68rem;font-weight:700;color:var(--gr);display:none;z-index:5}
+.abadge.on{display:block}
+
+
+/* ══ ZOOM BUTTON ══ */
+.cc { position: relative; }
+.zb {
+  position: absolute; top: 10px; right: 10px;
+  width: 28px; height: 28px; border-radius: 6px;
+  border: 1px solid rgba(42,63,95,0.9);
+  background: rgba(7,9,15,0.82);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.16s; z-index: 20;
+  padding: 0; line-height: 1;
+}
+.zb:hover {
+  border-color: var(--cy); background: rgba(0,229,255,0.1);
+  box-shadow: 0 0 10px rgba(0,229,255,0.3), inset 0 0 6px rgba(0,229,255,0.05);
+  transform: scale(1.08);
+}
+.zb svg { display: block; }
+
+/* ══ MODAL ══ */
+.zm-bg {
+  display: none; position: fixed; inset: 0; z-index: 3000;
+  background: rgba(4,6,13,0.92);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  align-items: center; justify-content: center; padding: 24px;
+}
+.zm-bg.open { display: flex; }
+.zm-bg.open .zm-box { animation: zpop 0.24s cubic-bezier(0.34,1.45,0.64,1) both; }
+@keyframes zpop { from { transform: scale(0.84) translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+.zm-box {
+  background: var(--s1); border: 1px solid var(--bd2); border-radius: 16px;
+  width: 100%; max-width: 1020px;
+  box-shadow: 0 0 100px rgba(0,229,255,0.06), 0 40px 100px rgba(0,0,0,0.85);
+  overflow: hidden; display: flex; flex-direction: column;
+}
+.zm-hdr {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 15px 20px 13px; border-bottom: 1px solid var(--bd); flex-shrink: 0;
+}
+.zm-hdr-left .zm-t { font-size: 0.95rem; font-weight: 700; color: var(--tx); }
+.zm-hdr-left .zm-s { font-size: 0.6rem; color: var(--dm); margin-top: 3px; }
+.zm-x {
+  width: 32px; height: 32px; border-radius: 7px; border: 1px solid var(--bd2);
+  background: transparent; color: var(--dm); font-size: 1.1rem;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; flex-shrink: 0;
+}
+.zm-x:hover { border-color: var(--re); color: var(--re); background: rgba(248,113,113,0.08); }
+.zm-body { padding: 22px; position: relative; height: 540px; flex-shrink: 0; }
+.zm-body canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; }
+
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div>
+    <div class="topbar-title">Solid State Physics Lab · 固態物理模擬器</div>
+    <div class="topbar-sub">Interactive Simulator — Drude · Sommerfeld · Fermi Surface · Heat Capacity</div>
+  </div>
+  <div>
+    <span class="tag tag-cy">Drude</span>
+    <span class="tag tag-pu">Sommerfeld</span>
+    <span class="tag tag-gr">Fermi Surface</span>
+    <span class="tag tag-or">Heat Capacity</span>
+    <span class="tag tag-ye">Comparison</span>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tabbt on"  onclick="tab('drude',this)">01 · Drude</button>
+  <button class="tabbt"     onclick="tab('somm',this)">02 · Sommerfeld</button>
+  <button class="tabbt"     onclick="tab('fd',this)">03 · Fermi-Dirac</button>
+  <button class="tabbt"     onclick="tab('fermi',this)">04 · Fermi Surface</button>
+  <button class="tabbt"     onclick="tab('heat',this)">05 · Heat Capacity</button>
+  <button class="tabbt"     onclick="tab('cmp',this)">06 · Comparison</button>
+</div>
+
+<!-- ═══════════════════════════════════════
+     01 DRUDE
+═══════════════════════════════════════ -->
+<div id="p-drude" class="panel on">
+  <div class="sh"><div class="sh-n">01</div><div><h2>Drude Model — Classical Free Electrons</h2><p>古典自由電子模型 · J vs E · ρ vs T · σ vs T</p></div></div>
+  <div class="lay2">
+    <div class="ctrl">
+      <div class="sec">Parameters</div>
+      <div class="slg">
+        <div class="slg-top"><span class="slg-name">n &nbsp;Electron Density</span><span class="slv" id="dn-v">8.49 ×10²⁸</span></div>
+        <input type="range" id="dn" min="1" max="20" step="0.1" value="8.49" oninput="updDrude()">
+        <span class="hint">×10²⁸ m⁻³ &nbsp; Cu≈8.5 · Al≈18.1 · Li≈4.7</span>
+      </div>
+      <div class="slg">
+        <div class="slg-top"><span class="slg-name">τ &nbsp;Relaxation Time</span><span class="slv pu" id="dt-v">2.50 ×10⁻¹⁴</span></div>
+        <input type="range" class="pu" id="dt" min="0.5" max="10" step="0.1" value="2.5" oninput="updDrude()">
+        <span class="hint">×10⁻¹⁴ s &nbsp; Cu≈2.5</span>
+      </div>
+      <div class="slg">
+        <div class="slg-top"><span class="slg-name">E &nbsp;Electric Field</span><span class="slv or" id="de-v">1.0 ×10³</span></div>
+        <input type="range" class="or" id="de" min="0.1" max="10" step="0.1" value="1.0" oninput="updDrude()">
+        <span class="hint">×10³ V/m</span>
+      </div>
+      <div class="sec">Computed @ T=300K</div>
+      <div class="mgrid">
+        <div class="mbox"><div class="mlb">Drift vd</div><div class="mv" id="d-vd">—</div></div>
+        <div class="mbox"><div class="mlb">Conductivity σ</div><div class="mv gr" id="d-sg">—</div></div>
+        <div class="mbox"><div class="mlb">Resistivity ρ</div><div class="mv pu" id="d-rh">—</div></div>
+        <div class="mbox"><div class="mlb">Current J</div><div class="mv or" id="d-jj">—</div></div>
+        <div class="mbox"><div class="mlb">Free Path λ</div><div class="mv ye" id="d-lm">—</div></div>
+        <div class="mbox"><div class="mlb">τ @ 300K</div><div class="mv" id="d-t3">—</div></div>
+      </div>
+      <div class="pnote">
+        <span class="f">σ = ne²τ / mₑ</span>
+        <span class="f">vd = eEτ / mₑ</span>
+        <span class="f">τ(T) = τ₀·(300/T) → ρ∝T</span>
+        電子與離子碰撞，τ∝1/T 使電阻率線性增加
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="lay2e">
+        <div class="cc"><div class="ct">J vs E &nbsp;<span style="color:var(--dm);font-size:0.68rem">歐姆定律</span></div><div class="cs">電流密度 vs 電場強度</div><div class="cw"><canvas id="cJE"></canvas></div></div>
+        <div class="cc"><div class="ct">ρ vs T &nbsp;<span style="color:var(--dm);font-size:0.68rem">ρ∝T</span></div><div class="cs">電阻率 vs 溫度 (10–900K)</div><div class="cw"><canvas id="cRT"></canvas></div></div>
+      </div>
+      <div class="cc med"><div class="ct">σ vs T &nbsp;<span style="color:var(--dm);font-size:0.68rem">σ∝1/T</span></div><div class="cs">電導率隨溫度下降</div><div class="cw" style="height:160px"><canvas id="cST"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     02 SOMMERFELD
+═══════════════════════════════════════ -->
+<div id="p-somm" class="panel">
+  <div class="sh"><div class="sh-n">02</div><div><h2>Sommerfeld Model — Quantum Free Electrons</h2><p>量子自由電子模型 · Fermi 能量 · 態密度</p></div></div>
+  <div class="lay2">
+    <div class="ctrl">
+      <div class="sec">Parameters</div>
+      <div class="slg">
+        <div class="slg-top"><span class="slg-name">n &nbsp;Electron Density</span><span class="slv" id="sn-v">8.49 ×10²⁸</span></div>
+        <input type="range" id="sn" min="1" max="20" step="0.1" value="8.49" oninput="updSomm()">
+        <span class="hint">×10²⁸ m⁻³</span>
+      </div>
+      <div class="sec">Fermi Parameters</div>
+      <div class="mgrid">
+        <div class="mbox"><div class="mlb">Fermi Energy E_F</div><div class="mv" id="s-ef">—</div></div>
+        <div class="mbox"><div class="mlb">Fermi k_F</div><div class="mv pu" id="s-kf">—</div></div>
+        <div class="mbox"><div class="mlb">Fermi v_F</div><div class="mv or" id="s-vf">—</div></div>
+        <div class="mbox"><div class="mlb">Fermi Temp T_F</div><div class="mv gr" id="s-tf">—</div></div>
+        <div class="mbox"><div class="mlb">T/T_F @ 300K</div><div class="mv ye" id="s-ra">—</div></div>
+        <div class="mbox"><div class="mlb">g(E_F)</div><div class="mv" id="s-gf">—</div></div>
+      </div>
+      <div class="pnote">
+        <span class="f">E_F = (ℏ²/2m)(3π²n)^(2/3)</span>
+        <span class="f">k_F = (3π²n)^(1/3)</span>
+        <span class="f">g(E) = (1/2π²)(2m/ℏ²)^(3/2)√E</span>
+        T≪T_F → 強量子縮並，只有 E_F 附近電子可被熱激發
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="lay2e">
+        <div class="cc"><div class="ct">DOS g(E) ∝ √E</div><div class="cs">3D 態密度 · 綠色區域=已填滿</div><div class="cw"><canvas id="cDOS"></canvas></div></div>
+        <div class="cc"><div class="ct">g(E)·f(E) &nbsp;Occupied States</div><div class="cs">佔據態 @ T=300K</div><div class="cw"><canvas id="cGF"></canvas></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     03 FERMI-DIRAC
+═══════════════════════════════════════ -->
+<div id="p-fd" class="panel">
+  <div class="sh"><div class="sh-n">03</div><div><h2>Fermi-Dirac Distribution</h2><p>費米-狄拉克分布 · 多溫度曲線 · 動畫掃描</p></div></div>
+  <div class="lay2">
+    <div class="ctrl">
+      <div class="sec">Parameters</div>
+      <div class="slg">
+        <div class="slg-top"><span class="slg-name">n &nbsp;Electron Density</span><span class="slv" id="fn-v">8.49 ×10²⁸</span></div>
+        <input type="range" id="fn" min="1" max="20" step="0.1" value="8.49" oninput="updFD()">
+      </div>
+      <div class="sec">Temperature Curves</div>
+      <div class="tlist" id="tlist"></div>
+      <div class="sbt-row" style="margin-top:8px">
+        <button class="sbt" onclick="addFDcurve()">＋ 新增</button>
+        <button class="sbt" onclick="fdPreset('metal')">金屬預設</button>
+        <button class="sbt" onclick="fdPreset('wide')">寬範圍</button>
+        <button class="sbt red" onclick="fdClear()">清除</button>
+      </div>
+      <div class="sec">Animation 動畫掃描</div>
+      <div class="slg">
+        <div class="slg-top"><span class="slg-name">Max T</span><span class="slv or" id="fat-v">50000 K</span></div>
+        <input type="range" class="or" id="fat" min="1000" max="100000" step="1000" value="50000" oninput="document.getElementById('fat-v').textContent=fmtT(+this.value)">
+      </div>
+      <div class="anim-bar">
+        <button class="abt" id="fplay" onclick="fdTogglePlay()">▶</button>
+        <button class="abt" onclick="fdReset()">↺</button>
+        <div style="flex:1">
+          <div style="font-size:0.58rem;color:var(--dm);margin-bottom:3px">Speed</div>
+          <input type="range" class="or" id="fspd" min="1" max="10" step="1" value="3" oninput="document.getElementById('fspd-v').textContent='×'+this.value">
+        </div>
+        <span style="font-size:0.62rem;color:var(--dm)" id="fspd-v">×3</span>
+      </div>
+      <div class="sec">Key Values</div>
+      <div class="mgrid">
+        <div class="mbox"><div class="mlb">E_F</div><div class="mv" id="fd-ef">—</div></div>
+        <div class="mbox"><div class="mlb">T_F</div><div class="mv gr" id="fd-tf">—</div></div>
+        <div class="mbox"><div class="mlb">Anim T</div><div class="mv ye" id="fd-at">—</div></div>
+        <div class="mbox"><div class="mlb">k_BT (anim)</div><div class="mv or" id="fd-kt">—</div></div>
+      </div>
+      <div class="pnote">
+        <span class="f">f(E) = 1/[exp((E−μ)/k_BT)+1]</span>
+        T=0: 完美階梯函數<br>
+        T>0: 寬度≈4k_BT 的熱展寬<br>
+        T≫T_F: 趨向 Maxwell-Boltzmann
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="cc tall" style="position:relative">
+        <div class="abadge" id="fbadge">T = —</div>
+        <div class="ct">Fermi-Dirac Distribution f(E)</div>
+        <div class="cs">多溫度曲線 · 橙線=E_F · 綠色=動畫掃描溫度</div>
+        <div style="display:flex;gap:6px;margin:4px 0 8px;flex-wrap:wrap">
+          <button class="tgb cy on" id="vb-lin" onclick="fdSetX('lin',this)">Linear</button>
+          <button class="tgb" id="vb-log" onclick="fdSetX('log',this)">Log E</button>
+          &nbsp;
+          <button class="tgb cy on" id="vb-ev" onclick="fdSetU('eV',this)">eV</button>
+          <button class="tgb" id="vb-ef" onclick="fdSetU('EF',this)">E/E_F</button>
+        </div>
+        <div class="cw" style="height:260px"><canvas id="cFD"></canvas></div>
+      </div>
+      <div class="lay2e">
+        <div class="cc"><div class="ct">−∂f/∂E &nbsp;Spectral Weight</div><div class="cs">費米面峰值 — 溫度越高越寬</div><div class="cw"><canvas id="cDF"></canvas></div></div>
+        <div class="cc"><div class="ct">Thermal Width ΔE ≈ k_BT</div><div class="cs">熱展寬 vs 溫度</div><div class="cw"><canvas id="cTW"></canvas></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     04 FERMI SURFACE
+═══════════════════════════════════════ -->
+<div id="p-fermi" class="panel">
+  <div class="sh"><div class="sh-n">04</div><div><h2>Fermi Surface in 1D / 2D / 3D</h2><p>k空間費米面 · 態密度維度比較</p></div></div>
+  <div class="lay2">
+    <div class="ctrl">
+      <div class="sec">Parameters</div>
+      <div class="slg">
+        <div class="slg-top"><span class="slg-name">n &nbsp;Electron Density</span><span class="slv" id="fern-v">8.49 ×10²⁸</span></div>
+        <input type="range" id="fern" min="1" max="20" step="0.1" value="8.49" oninput="updFermi()">
+      </div>
+      <div class="sec">k-Space Values</div>
+      <div class="mgrid">
+        <div class="mbox"><div class="mlb">k_F (3D)</div><div class="mv" id="fer-k3">—</div></div>
+        <div class="mbox"><div class="mlb">k_F (2D equiv)</div><div class="mv pu" id="fer-k2">—</div></div>
+        <div class="mbox"><div class="mlb">k_F (1D equiv)</div><div class="mv or" id="fer-k1">—</div></div>
+        <div class="mbox"><div class="mlb">E_F</div><div class="mv gr" id="fer-ef">—</div></div>
+      </div>
+      <div class="sec">2D Options</div>
+      <div class="tg-row">
+        <button class="tgb cy" id="tb-kg" onclick="togKG(this)">k-Grid</button>
+        <button class="tgb gr" id="tb-fl" onclick="togFL(this)">Fill</button>
+        <button class="tgb pu" id="tb-bz" onclick="togBZ(this)">BZ</button>
+      </div>
+      <div class="pnote">
+        <span class="f">1D: k_F = πn/2</span>
+        <span class="f">2D: k_F = √(2πn₂D)</span>
+        <span class="f">3D: k_F = (3π²n)^(1/3)</span>
+        <span class="f">1D: g(E) ∝ E^(-1/2)</span>
+        <span class="f">2D: g(E) = const</span>
+        <span class="f">3D: g(E) ∝ E^(+1/2)</span>
+        3D 球面拖曳可旋轉
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="lay3">
+        <div class="cc"><div class="ct">1D Fermi Points</div><div class="cs">±k_F 兩個費米點</div><div class="cw"><canvas id="c1D"></canvas></div></div>
+        <div class="cc"><div class="ct">2D Fermi Circle</div><div class="cs">費米圓 k空間</div><button class="zb" onclick="openZoom2D()" title="放大檢視"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.5"/><line x1="8.7" y1="8.7" x2="13" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="3.5" y1="5.5" x2="7.5" y2="5.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="5.5" y1="3.5" x2="5.5" y2="7.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></button><div class="fcanv" style="height:230px"><canvas id="c2D" width="300" height="230"></canvas></div></div>
+        <div class="cc"><div class="ct">3D Fermi Sphere</div><div class="cs">費米球 · 拖曳旋轉</div><button class="zb" onclick="openZoom3D()" title="放大檢視"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.5"/><line x1="8.7" y1="8.7" x2="13" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="3.5" y1="5.5" x2="7.5" y2="5.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="5.5" y1="3.5" x2="5.5" y2="7.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></button><div class="fcanv" style="height:230px"><canvas id="c3D" width="300" height="230" style="cursor:grab"></canvas></div></div>
+      </div>
+      <div class="cc"><div class="ct">DOS Comparison: 1D vs 2D vs 3D</div><div class="cs">三維度態密度比較</div><div class="cw"><canvas id="cDOSd"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     05 HEAT CAPACITY
+═══════════════════════════════════════ -->
+<div id="p-heat" class="panel">
+  <div class="sh"><div class="sh-n">05</div><div><h2>Heat Capacity Models</h2><p>比熱：Boltzmann · Einstein · Debye · Sommerfeld</p></div></div>
+  <div class="lay2">
+    <div class="ctrl">
+      <div class="sec">Parameters</div>
+      <div class="slg">
+        <div class="slg-top"><span class="slg-name">θ_E &nbsp;Einstein Temperature</span><span class="slv or" id="he-v">240 K</span></div>
+        <input type="range" class="or" id="he" min="50" max="800" step="10" value="240" oninput="updHeat()">
+      </div>
+      <div class="slg">
+        <div class="slg-top"><span class="slg-name">θ_D &nbsp;Debye Temperature</span><span class="slv pu" id="hd-v">343 K</span></div>
+        <input type="range" class="pu" id="hd" min="50" max="1200" step="10" value="343" oninput="updHeat()">
+        <span class="hint">Cu≈343 · Al≈428 · Fe≈470 · Pb≈105 · Diamond≈2230</span>
+      </div>
+      <div class="slg">
+        <div class="slg-top"><span class="slg-name">n &nbsp;Electron Density</span><span class="slv" id="hn-v">8.49 ×10²⁸</span></div>
+        <input type="range" id="hn" min="1" max="20" step="0.1" value="8.49" oninput="updHeat()">
+      </div>
+      <div class="sec">Toggle Models</div>
+      <div class="tg-row">
+        <button class="tgb cy on" id="hm-cl" onclick="togHM('cl',this)">Classical</button>
+        <button class="tgb or on" id="hm-ei" onclick="togHM('ei',this)">Einstein</button>
+        <button class="tgb gr on" id="hm-db" onclick="togHM('db',this)">Debye</button>
+        <button class="tgb pu on" id="hm-el" onclick="togHM('el',this)">Electronic</button>
+      </div>
+      <div class="sec">Values @ T=300K</div>
+      <div class="mgrid">
+        <div class="mbox"><div class="mlb">Classical C/R</div><div class="mv" id="hv-cl">—</div></div>
+        <div class="mbox"><div class="mlb">Einstein C/R</div><div class="mv or" id="hv-ei">—</div></div>
+        <div class="mbox"><div class="mlb">Debye C/R</div><div class="mv gr" id="hv-db">—</div></div>
+        <div class="mbox"><div class="mlb">Electronic C/R</div><div class="mv pu" id="hv-el">—</div></div>
+        <div class="mbox"><div class="mlb">γ (Sommerfeld)</div><div class="mv ye" id="hv-gm">—</div></div>
+        <div class="mbox"><div class="mlb">C_e/C_cl ratio</div><div class="mv re" id="hv-rt">—</div></div>
+      </div>
+      <div class="pnote">
+        <span class="f">C_cl = 3Nk_B (const)</span>
+        <span class="f">C_E ∝ x²eˣ/(eˣ-1)²</span>
+        <span class="f">C_D ∝ T³ (低溫)</span>
+        <span class="f">C_e = γT, γ=π²Nk_B/2T_F</span>
+        Debye T³ 低溫行為符合實驗
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="lay2e">
+        <div class="cc"><div class="ct">C vs T &nbsp;<span style="color:var(--dm);font-size:0.68rem">Full Range</span></div><div class="cs">比熱 vs 溫度 (0–700K)</div><div class="cw"><canvas id="cCvT"></canvas></div></div>
+        <div class="cc"><div class="ct">C vs T &nbsp;<span style="color:var(--dm);font-size:0.68rem">Log Scale</span></div><div class="cs">低溫對數圖 — T³ vs 指數衰減</div><div class="cw"><canvas id="cClog"></canvas></div></div>
+      </div>
+      <div class="cc med"><div class="ct">C/T vs T² &nbsp;<span style="color:var(--dm);font-size:0.68rem">Sommerfeld Plot</span></div><div class="cs">截距=γ(電子)，斜率=A(聲子Debye)</div><div class="cw" style="height:165px"><canvas id="cCsf"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     06 COMPARISON
+═══════════════════════════════════════ -->
+<div id="p-cmp" class="panel">
+  <div class="sh"><div class="sh-n">06</div><div><h2>Complete Comparison — Why Classical Theory Fails</h2><p>完整比較 · 量子必要性 · 低溫行為 · 維度效應</p></div></div>
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <div class="cc tall"><div class="ct">All Heat Capacity Models — Full T Range</div><div class="cs">Classical · Einstein · Debye · Electronic (×30 放大)</div><div class="cw" style="height:300px"><canvas id="cCmpAll"></canvas></div></div>
+    <div class="lay3">
+      <div class="cc"><div class="ct">Classical vs Quantum C_e</div><div class="cs">為何量子統計必要？差距~200倍</div><div class="cw"><canvas id="cCmpCe"></canvas></div></div>
+      <div class="cc"><div class="ct">Debye T³ Law Verification</div><div class="cs">低溫 T³ (Debye) vs 指數 (Einstein)</div><div class="cw"><canvas id="cCmpT3"></canvas></div></div>
+      <div class="cc"><div class="ct">DOS: 1D vs 2D vs 3D</div><div class="cs">維度效應 — 形狀決定熱學性質</div><div class="cw"><canvas id="cCmpDOS"></canvas></div></div>
+    </div>
+    <div class="lay3">
+      <div class="pnote" style="border-radius:9px;padding:16px">
+        <span style="color:var(--cy);font-weight:700;font-size:0.72rem">❓ 為何需要量子統計？</span><br><br>
+        古典 Maxwell-Boltzmann → C_e = 3/2 Nk_B ≈ 12.5 J/mol·K<br><br>
+        實驗值 ≈ 0.07 mJ/mol·K at 300K<br>
+        差距 <span style="color:var(--re);font-weight:700">~200倍</span><br><br>
+        Fermi-Dirac + Pauli 排他：<br>
+        只有 Fermi 面附近 ~k_BT 的電子可被激發<br>
+        比例 T/T_F ≈ 0.4% at 300K
+      </div>
+      <div class="pnote" style="border-radius:9px;padding:16px">
+        <span style="color:var(--gr);font-weight:700;font-size:0.72rem">🧊 為何 Debye 優於 Einstein？</span><br><br>
+        Einstein: 所有原子同一頻率振動<br>
+        低溫 → exp(-θ/T) 指數壓制（實驗不符）<br><br>
+        Debye: 完整聲學聲子頻譜 ω = v_s k<br>
+        低溫只有長波長聲子被激發<br><br>
+        → <span style="color:var(--gr);font-weight:700">T³ 定律</span>，所有簡單固體實驗吻合
+      </div>
+      <div class="pnote" style="border-radius:9px;padding:16px">
+        <span style="color:var(--pu);font-weight:700;font-size:0.72rem">📐 維度與 DOS 的關係</span><br><br>
+        <span style="color:var(--re)">1D:</span> g(E) ∝ E^(-1/2) — van Hove 奇異點<br>
+        <span style="color:var(--or)">2D:</span> g(E) = const — 石墨烯層狀結構<br>
+        <span style="color:var(--gr)">3D:</span> g(E) ∝ E^(+1/2) — 塊材金屬<br><br>
+        DOS 形狀決定所有熱學與輸運性質<br>
+        2D 平坦 DOS → 增強關聯電子效應
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════
+//  CONSTANTS
+// ════════════════════
+const e_c=1.602e-19,me=9.109e-31,hb=1.055e-34,kB=1.381e-23,NA=6.022e23,eV_=1.602e-19;
+
+// ════════════════════
+//  PHYSICS
+// ════════════════════
+function EF(n){return (hb*hb/(2*me))*Math.pow(3*Math.PI*Math.PI*n,2/3);}
+function kF(n){return Math.pow(3*Math.PI*Math.PI*n,1/3);}
+function vF(k){return hb*k/me;}
+function TF(ef){return ef/kB;}
+function fd(E,mu,T){
+  if(T<0.1) return E<=mu?1:0;
+  const x=(E-mu)/(kB*T);
+  if(x>500) return 0; if(x<-500) return 1;
+  return 1/(Math.exp(x)+1);
+}
+function dos3(E){
+  if(E<=0) return 0;
+  return (1/(2*Math.PI*Math.PI))*Math.pow(2*me/(hb*hb),1.5)*Math.sqrt(E);
+}
+function tau_T(T,t0=2.5e-14){return t0*(300/T);}
+function sigma_(n,tau){return n*e_c*e_c*tau/me;}
+function rho_(n,tau){return me/(n*e_c*e_c*tau);}
+
+function debyeI(lim,N=500){
+  if(lim<1e-10) return 0;
+  const h=lim/N; let s=0;
+  for(let i=0;i<=N;i++){
+    const x=i*h; let f;
+    if(x<1e-8){f=x*x;}
+    else{const ex=Math.exp(Math.min(x,500));f=x*x*x*x*ex/((ex-1)*(ex-1));}
+    s+=(i===0||i===N)?f:((i%2===0)?2*f:4*f);
+  }
+  return s*h/3;
+}
+function Cdebye(T,tD,N=NA){
+  if(T<0.01) return 0;
+  return 9*N*kB*Math.pow(T/tD,3)*debyeI(tD/T);
+}
+function Ceinstein(T,tE,N=NA){
+  const x=tE/T; if(x>500) return 0;
+  const ex=Math.exp(x);
+  return 3*N*kB*x*x*ex/((ex-1)*(ex-1));
+}
+function Cel(T,ef,N=NA){return (Math.PI*Math.PI/2)*N*kB*(T/TF(ef));}
+function Ccl(N=NA){return 3*N*kB;}
+
+// ════════════════════
+//  HELPERS
+// ════════════════════
+function linsp(a,b,n){return Array.from({length:n},(_,i)=>a+(b-a)*i/(n-1));}
+function logsp(a,b,n){return Array.from({length:n},(_,i)=>Math.pow(10,Math.log10(a)+(Math.log10(b)-Math.log10(a))*i/(n-1)));}
+
+function sci(v,d=3){
+  if(v===0) return '0';
+  if(!isFinite(v)) return '—';
+  const abs=Math.abs(v),ex=Math.floor(Math.log10(abs));
+  if(Math.abs(ex)<3) return v.toPrecision(d);
+  const sup={'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','-':'⁻'};
+  const s=String(ex).split('').map(c=>sup[c]||c).join('');
+  return (v/Math.pow(10,ex)).toFixed(d-1)+'×10'+s;
+}
+
+function fmtT(T){
+  if(T>=1e6) return sci(T,3)+' K';
+  if(T>=1e4) return sci(T,3)+' K';
+  if(T>=1000) return (T/1000).toFixed(1)+'×10³ K';
+  return T.toFixed(0)+' K';
+}
+
+// ════════════════════
+//  CHART ENGINE
+// ════════════════════
+Chart.defaults.color='#64748b';
+Chart.defaults.borderColor='#1e2d47';
+const CH={};
+function mkChart(id,cfg){
+  if(CH[id]) CH[id].destroy();
+  const el=document.getElementById(id);
+  if(!el) return;
+  CH[id]=new Chart(el.getContext('2d'),cfg);
+  return CH[id];
+}
+
+function baseOpt(xl,yl,extra){
+  const base={
+    responsive:true,maintainAspectRatio:false,
+    animation:{duration:0},
+    interaction:{mode:'index',intersect:false},
+    plugins:{
+      legend:{display:true,position:'top',
+        labels:{boxWidth:9,padding:7,usePointStyle:true,
+          font:{size:9,family:'Courier New'},color:'#94a3b8'}},
+      tooltip:{
+        bodyFont:{family:'Courier New',size:10},
+        titleFont:{family:'Courier New',size:10},
+        callbacks:{label:function(c){return ' '+c.dataset.label+': '+sci(c.parsed.y,4);}}
+      }
+    },
+    scales:{
+      x:{title:{display:true,text:xl,color:'#64748b',font:{size:9}},
+        ticks:{maxTicksLimit:7,font:{size:8},callback:function(v){return sci(+v,3);}},
+        grid:{color:'rgba(30,45,71,0.5)'}},
+      y:{title:{display:true,text:yl,color:'#64748b',font:{size:9}},
+        ticks:{maxTicksLimit:6,font:{size:8},callback:function(v){return sci(v,3);}},
+        grid:{color:'rgba(30,45,71,0.5)'}}
+    }
+  };
+  if(extra){ // manual merge
+    if(extra.scales){
+      if(extra.scales.x) Object.assign(base.scales.x,extra.scales.x);
+      if(extra.scales.y) Object.assign(base.scales.y,extra.scales.y);
+    }
+    if(extra.plugins){
+      if(extra.plugins.legend) Object.assign(base.plugins.legend,extra.plugins.legend);
+    }
+  }
+  return base;
+}
+
+function ds(lbl,dat,col,ex){
+  const o={label:lbl,data:dat,borderColor:col,backgroundColor:'transparent',
+    borderWidth:2,pointRadius:0,fill:false,tension:0.2};
+  if(ex) Object.assign(o,ex);
+  return o;
+}
+
+// ════════════════════
+//  TAB
+// ════════════════════
+function tab(name,btn){
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('on');});
+  document.querySelectorAll('.tabbt').forEach(function(b){b.classList.remove('on');});
+  document.getElementById('p-'+name).classList.add('on');
+  btn.classList.add('on');
+  if(name==='drude') updDrude();
+  if(name==='somm') updSomm();
+  if(name==='fd') updFD();
+  if(name==='fermi') updFermi();
+  if(name==='heat') updHeat();
+  if(name==='cmp') updCmp();
+}
+
+// ════════════════════
+//  01 DRUDE
+// ════════════════════
+function updDrude(){
+  const n=parseFloat(document.getElementById('dn').value)*1e28;
+  const t0=parseFloat(document.getElementById('dt').value)*1e-14;
+  const Ef=parseFloat(document.getElementById('de').value)*1e3;
+  document.getElementById('dn-v').textContent=sci(n/1e28,3)+' ×10²⁸';
+  document.getElementById('dt-v').textContent=sci(t0*1e14,3)+' ×10⁻¹⁴';
+  document.getElementById('de-v').textContent=sci(Ef/1e3,3)+' ×10³';
+  const T=300,tau=tau_T(T,t0);
+  const sg=sigma_(n,tau),rh=rho_(n,tau),vd=e_c*Ef*tau/me;
+  const J=sg*Ef,vth=Math.sqrt(3*kB*T/me),lm=vth*tau;
+  document.getElementById('d-vd').textContent=sci(vd,3)+' m/s';
+  document.getElementById('d-sg').textContent=sci(sg,3)+' S/m';
+  document.getElementById('d-rh').textContent=sci(rh,3)+' Ω·m';
+  document.getElementById('d-jj').textContent=sci(J,3)+' A/m²';
+  document.getElementById('d-lm').textContent=sci(lm*1e9,3)+' nm';
+  document.getElementById('d-t3').textContent=sci(tau,3)+' s';
+
+  const Es=linsp(0,1e7,200);
+  mkChart('cJE',{type:'line',data:{labels:Es.map(function(x){return (x/1e6).toFixed(1);}),
+    datasets:[ds('J=σE',Es.map(function(x){return sg*x;}),
+      '#00e5ff',{fill:true,backgroundColor:'rgba(0,229,255,0.08)'})]},
+    options:baseOpt('E (MV/m)','J (A/m²)')});
+
+  const Ts=linsp(10,900,200);
+  mkChart('cRT',{type:'line',data:{labels:Ts.map(function(x){return x.toFixed(0);}),
+    datasets:[
+      ds('Drude ρ',Ts.map(function(T){return rho_(n,tau_T(T,t0))*1e8;}),
+        '#34d399',{fill:true,backgroundColor:'rgba(52,211,153,0.07)'}),
+      ds('Cu exp',Ts.map(function(T){return 1.68*(T/300);}),
+        '#fb923c',{borderDash:[5,3]})
+    ]},options:baseOpt('T (K)','ρ (×10⁻⁸ Ω·m)')});
+
+  mkChart('cST',{type:'line',data:{labels:Ts.map(function(x){return x.toFixed(0);}),
+    datasets:[ds('σ(T)',Ts.map(function(T){return sigma_(n,tau_T(T,t0));}),
+      '#a78bfa',{fill:true,backgroundColor:'rgba(167,139,250,0.07)'})]},
+    options:baseOpt('T (K)','σ (S/m)')});
+}
+
+// ════════════════════
+//  02 SOMMERFELD
+// ════════════════════
+function updSomm(){
+  const n=parseFloat(document.getElementById('sn').value)*1e28;
+  document.getElementById('sn-v').textContent=sci(n/1e28,3)+' ×10²⁸';
+  const ef=EF(n),k=kF(n),v=vF(k),tf=TF(ef);
+  document.getElementById('s-ef').textContent=sci(ef/eV_,3)+' eV';
+  document.getElementById('s-kf').textContent=sci(k,3)+' m⁻¹';
+  document.getElementById('s-vf').textContent=sci(v,3)+' m/s';
+  document.getElementById('s-tf').textContent=sci(tf,3)+' K';
+  document.getElementById('s-ra').textContent=sci(300/tf,3);
+  document.getElementById('s-gf').textContent=sci(dos3(ef)*eV_,3)+' m⁻³eV⁻¹';
+
+  const Es=linsp(0.001*ef,2.5*ef,400);
+  const eV_l=Es.map(function(E){return E/eV_;});
+  const g=Es.map(function(E){return dos3(E)*eV_*1e-27;});
+  mkChart('cDOS',{type:'line',data:{labels:eV_l.map(function(x){return x.toFixed(2);}),
+    datasets:[
+      ds('g(E)',g,'#a78bfa',{fill:true,backgroundColor:'rgba(167,139,250,0.1)'}),
+      {label:'Below E_F',data:Es.map(function(E,i){return E<=ef?g[i]:null;}),
+        borderColor:'transparent',backgroundColor:'rgba(0,229,255,0.15)',
+        fill:true,pointRadius:0,tension:0.2}
+    ]},options:baseOpt('E (eV)','g(E) (×10²⁷ m⁻³eV⁻¹)')});
+
+  const gf=Es.map(function(E){return dos3(E)*fd(E,ef,300)*eV_*1e-27;});
+  mkChart('cGF',{type:'line',data:{labels:eV_l.map(function(x){return x.toFixed(2);}),
+    datasets:[
+      ds('g(E)·f(E)',gf,'#34d399',{fill:true,backgroundColor:'rgba(52,211,153,0.08)'}),
+      {label:'g(E) total',data:g,borderColor:'rgba(167,139,250,0.3)',
+        backgroundColor:'transparent',borderWidth:1.2,pointRadius:0,borderDash:[4,3]}
+    ]},options:baseOpt('E (eV)','g(E)·f(E) (×10²⁷)')});
+}
+
+// ════════════════════
+//  03 FERMI-DIRAC
+// ════════════════════
+const FD_COLORS=['#00e5ff','#a78bfa','#fb923c','#34d399','#f472b6','#fbbf24','#f87171','#60a5fa','#4ade80','#e879f9','#38bdf8','#facc15'];
+let fdCurves=[];
+let fdNextId=0;
+let fdXscale='lin',fdUnit='eV';
+let fdAnimOn=false,fdAnimT=10,fdAnimRaf=null,fdAnimLast=0;
+
+function addFDcurve(T,skip){
+  if(T===undefined){
+    const ex=fdCurves.map(function(c){return c.T;});
+    const defs=[300,1000,3000,10000,30000,0,100,500,5000];
+    T=defs.find(function(t){return ex.indexOf(t)<0;})||500;
+  }
+  if(fdCurves.length>=12){alert('最多12條');return;}
+  fdCurves.push({T:T,color:FD_COLORS[fdCurves.length%12],visible:true,id:fdNextId++});
+  if(!skip){renderTlist();renderFDall();}
+}
+function removeFDc(id){
+  fdCurves=fdCurves.filter(function(c){return c.id!==id;});
+  renderTlist();renderFDall();
+}
+function togFDc(id){
+  const c=fdCurves.find(function(x){return x.id===id;});
+  if(c){c.visible=!c.visible;renderTlist();renderFDall();}
+}
+function fdClear(){fdCurves=[];renderTlist();renderFDall();}
+function fdPreset(p){
+  fdCurves=[];
+  const sets={metal:[0,100,300,1000,3000,10000],wide:[300,3000,30000,100000,500000]};
+  (sets[p]||sets.metal).forEach(function(T){addFDcurve(T,true);});
+  renderTlist();renderFDall();
+}
+
+function renderTlist(){
+  const el=document.getElementById('tlist');
+  if(!el) return;
+  el.innerHTML='';
+  const sorted=fdCurves.slice().sort(function(a,b){return a.T-b.T;});
+  sorted.forEach(function(c){
+    const div=document.createElement('div');
+    div.className='titem'+(c.visible?'':' opacity-40');
+    div.style.opacity=c.visible?'1':'0.4';
+    const kTstr=sci(kB*c.T/eV_,3)+' eV';
+    div.innerHTML='<div class="tdot" style="background:'+c.color+'"></div>'
+      +'<span class="tname" style="color:'+(c.visible?c.color:'var(--dm)')+'">'+fmtT(c.T)+'</span>'
+      +'<span class="tkbt">k_BT='+kTstr+'</span>'
+      +'<button class="tbtn" onclick="togFDc('+c.id+')">'+(c.visible?'👁':'○')+'</button>'
+      +'<button class="tbtn" onclick="removeFDc('+c.id+')">✕</button>';
+    el.appendChild(div);
+  });
+}
+
+function updFD(){
+  const n=parseFloat(document.getElementById('fn').value)*1e28;
+  document.getElementById('fn-v').textContent=sci(n/1e28,3)+' ×10²⁸';
+  const ef=EF(n),tf=TF(ef);
+  document.getElementById('fd-ef').textContent=sci(ef/eV_,3)+' eV';
+  document.getElementById('fd-tf').textContent=sci(tf,3)+' K';
+  renderFDall();
+}
+
+function getFDn(){return parseFloat(document.getElementById('fn').value)*1e28;}
+
+function renderFDall(){
+  const n=getFDn(),ef=EF(n);
+  const Es=fdXscale==='lin'?linsp(0.001*ef,2.5*ef,500)
+    :logsp(ef*0.001,ef*3,500);
+  const lbs=Es.map(function(E){
+    return fdUnit==='eV'?(E/eV_).toFixed(3):(E/ef).toFixed(3);
+  });
+  const xl=fdUnit==='eV'?'E (eV)':'E / E_F';
+
+  // FD main
+  const dsets=[];
+  const sorted=fdCurves.slice().sort(function(a,b){return a.T-b.T;});
+  sorted.forEach(function(c){
+    if(!c.visible) return;
+    const dat=Es.map(function(E){return fd(E,ef,c.T);});
+    dsets.push({label:fmtT(c.T),data:dat,borderColor:c.color,
+      backgroundColor:'transparent',borderWidth:c.T===0?2.5:1.8,
+      pointRadius:0,tension:0.1,borderDash:c.T===0?[5,3]:[]});
+  });
+  // EF line
+  dsets.push({label:'E_F',data:Es.map(function(E){
+    return Math.abs((fdUnit==='eV'?E/eV_:E/ef)-(fdUnit==='eV'?ef/eV_:1))<(fdUnit==='eV'?0.01*ef/eV_:0.01)?0.5:null;
+  }),borderColor:'rgba(251,146,60,0.5)',backgroundColor:'transparent',
+    borderWidth:1.5,pointRadius:0,borderDash:[3,3]});
+  // anim curve
+  if(fdAnimOn||fdAnimT>10){
+    dsets.push({label:'anim '+fmtT(fdAnimT),
+      data:Es.map(function(E){return fd(E,ef,fdAnimT);}),
+      borderColor:'rgba(52,211,153,0.95)',backgroundColor:'rgba(52,211,153,0.04)',
+      borderWidth:2.5,pointRadius:0,fill:true,tension:0.1});
+  }
+
+  const xType=fdXscale==='log'?'logarithmic':'linear';
+  const opt=baseOpt(xl,'f(E)');
+  opt.scales.x.type=xType;
+  opt.scales.y.min=0;opt.scales.y.max=1.05;
+  opt.scales.y.ticks.callback=function(v){return v.toFixed(2);};
+  opt.animation={duration:fdAnimOn?0:150};
+  opt.plugins.legend.labels.filter=function(item){return item.text!=='E_F';};
+
+  mkChart('cFD',{type:'line',data:{labels:lbs,datasets:dsets},options:opt});
+
+  // -df/dE
+  const dsets2=[];
+  const visC=fdCurves.filter(function(c){return c.visible&&c.T>0;});
+  visC.forEach(function(c){
+    const dat=Es.map(function(E,i){
+      const dE=Es[Math.min(i+1,Es.length-1)]-Es[Math.max(i-1,0)];
+      const dE2=dE/2||1e-25;
+      const f1=fd(Es[Math.max(i-1,0)],ef,c.T);
+      const f2=fd(Es[Math.min(i+1,Es.length-1)],ef,c.T);
+      return -(f2-f1)/dE2*eV_;
+    });
+    dsets2.push(ds(fmtT(c.T),dat,c.color));
+  });
+  if(fdAnimOn||fdAnimT>10){
+    const dat=Es.map(function(E,i){
+      const dE=Es[Math.min(i+1,Es.length-1)]-Es[Math.max(i-1,0)];
+      const dE2=dE/2||1e-25;
+      const f1=fd(Es[Math.max(i-1,0)],ef,fdAnimT);
+      const f2=fd(Es[Math.min(i+1,Es.length-1)],ef,fdAnimT);
+      return -(f2-f1)/dE2*eV_;
+    });
+    dsets2.push(ds('anim '+fmtT(fdAnimT),dat,'rgba(52,211,153,0.9)',
+      {fill:true,backgroundColor:'rgba(52,211,153,0.05)'}));
+  }
+  const opt2=baseOpt(xl,'−∂f/∂E (eV⁻¹)');
+  opt2.scales.x.type=xType;
+  opt2.animation={duration:fdAnimOn?0:150};
+  mkChart('cDF',{type:'line',data:{labels:lbs,datasets:dsets2},options:opt2});
+
+  // Thermal width
+  const Ts=linsp(10,30000,200);
+  mkChart('cTW',{type:'line',data:{labels:Ts.map(function(T){return T.toFixed(0);}),
+    datasets:[
+      ds('4k_BT',Ts.map(function(T){return 4*kB*T/eV_;}),
+        '#fb923c',{fill:true,backgroundColor:'rgba(251,146,60,0.07)'}),
+      ds('k_BT',Ts.map(function(T){return kB*T/eV_;}),
+        'rgba(251,146,60,0.4)',{borderDash:[4,3],borderWidth:1.2})
+    ]},options:baseOpt('T (K)','ΔE (eV)')});
+
+  // metrics
+  document.getElementById('fd-at').textContent=fdAnimOn?fmtT(fdAnimT):'—';
+  document.getElementById('fd-kt').textContent=fdAnimOn?sci(kB*fdAnimT/eV_,3)+' eV':'—';
+}
+
+function fdSetX(s,btn){
+  fdXscale=s;
+  document.getElementById('vb-lin').classList.toggle('cy',s==='lin');
+  document.getElementById('vb-log').classList.toggle('cy',s==='log');
+  renderFDall();
+}
+function fdSetU(u,btn){
+  fdUnit=u;
+  document.getElementById('vb-ev').classList.toggle('cy',u==='eV');
+  document.getElementById('vb-ef').classList.toggle('cy',u==='EF');
+  renderFDall();
+}
+
+// Animation
+function fdTogglePlay(){
+  fdAnimOn=!fdAnimOn;
+  const btn=document.getElementById('fplay');
+  btn.textContent=fdAnimOn?'⏸':'▶';
+  btn.classList.toggle('on',fdAnimOn);
+  document.getElementById('fbadge').classList.toggle('on',fdAnimOn);
+  if(fdAnimOn){
+    const maxT=parseFloat(document.getElementById('fat').value);
+    if(fdAnimT>=maxT) fdAnimT=10;
+    fdAnimLast=performance.now();
+    requestAnimationFrame(fdFrame);
+  }
+}
+function fdReset(){
+  fdAnimOn=false;fdAnimT=10;
+  document.getElementById('fplay').textContent='▶';
+  document.getElementById('fplay').classList.remove('on');
+  document.getElementById('fbadge').classList.remove('on');
+  renderFDall();
+}
+function fdFrame(ts){
+  if(!fdAnimOn) return;
+  const dt=(ts-fdAnimLast)/1000;
+  fdAnimLast=ts;
+  const spd=parseInt(document.getElementById('fspd').value);
+  const rates=[500,1200,3000,6000,10000,15000,22000,30000,40000,55000];
+  fdAnimT+=rates[spd-1]*dt;
+  const maxT=parseFloat(document.getElementById('fat').value);
+  if(fdAnimT>=maxT){
+    fdAnimT=maxT;fdAnimOn=false;
+    document.getElementById('fplay').textContent='▶';
+    document.getElementById('fplay').classList.remove('on');
+    document.getElementById('fbadge').classList.remove('on');
+  }
+  document.getElementById('fbadge').textContent='T = '+fmtT(fdAnimT);
+  document.getElementById('fd-at').textContent=fmtT(fdAnimT);
+  document.getElementById('fd-kt').textContent=sci(kB*fdAnimT/eV_,3)+' eV';
+  renderFDall();
+  if(fdAnimOn) requestAnimationFrame(fdFrame);
+}
+
+// ════════════════════
+//  04 FERMI SURFACE
+// ════════════════════
+let fKG=true,fFL=true,fBZ=true;
+let f3Dang={x:0.4,y:0.6},f3Ddr={on:false,lx:0,ly:0};
+
+function togKG(b){fKG=!fKG;b.classList.toggle('cy',fKG);draw2D();}
+function togFL(b){fFL=!fFL;b.classList.toggle('gr',fFL);draw2D();}
+function togBZ(b){fBZ=!fBZ;b.classList.toggle('pu',fBZ);draw2D();}
+
+function updFermi(){
+  const n=parseFloat(document.getElementById('fern').value)*1e28;
+  document.getElementById('fern-v').textContent=sci(n/1e28,3)+' ×10²⁸';
+  const ef=EF(n),k3=kF(n),k2=Math.sqrt(2*Math.PI*Math.pow(n,2/3)),k1=Math.PI*Math.pow(n,1/3)/2;
+  document.getElementById('fer-k3').textContent=sci(k3,3)+' m⁻¹';
+  document.getElementById('fer-k2').textContent=sci(k2,3)+' m⁻¹';
+  document.getElementById('fer-k1').textContent=sci(k1,3)+' m⁻¹';
+  document.getElementById('fer-ef').textContent=sci(ef/eV_,3)+' eV';
+
+  // 1D
+  const ks=linsp(-1.6,1.6,400);
+  mkChart('c1D',{type:'line',data:{labels:ks.map(function(x){return x.toFixed(2);}),
+    datasets:[
+      {label:'Occupied',data:ks.map(function(k){return Math.abs(k)<=1?1:0;}),
+        borderColor:'#00e5ff',backgroundColor:'rgba(0,229,255,0.18)',
+        borderWidth:2.5,pointRadius:0,fill:true,stepped:true},
+      {label:'±k_F',data:ks.map(function(k){
+        return (k>=-1.03&&k<=-0.97||k>=0.97&&k<=1.03)?0.5:null;
+      }),borderColor:'#fb923c',backgroundColor:'transparent',borderWidth:2.5,pointRadius:0}
+    ]},options:baseOpt('k / k_F','Occupation')});
+
+  draw2D();draw3D();
+
+  // DOS comparison
+  const Es=linsp(0.02,2,300);
+  const g1=Es.map(function(E){return Math.min(1/Math.sqrt(E),6);});
+  const g2=Es.map(function(){return 1;});
+  const g3=Es.map(function(E){return Math.sqrt(E);});
+  mkChart('cDOSd',{type:'line',data:{labels:Es.map(function(x){return x.toFixed(2);}),
+    datasets:[
+      ds('1D ∝ E^(-½)',g1,'#f87171'),
+      ds('2D = const',g2,'#fb923c',{borderDash:[6,3]}),
+      ds('3D ∝ E^(+½)',g3,'#34d399',{borderWidth:2.5})
+    ]},options:(function(){
+      const o=baseOpt('E / E_F','g(E) normalised');
+      o.scales.y.min=0;o.scales.y.max=4;
+      return o;
+    })()});
+}
+
+function draw2D(){
+  const cv=document.getElementById('c2D');
+  if(!cv) return;
+  const W=cv.width,H=cv.height;
+  const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#111827';ctx.fillRect(0,0,W,H);
+  const cx=W/2,cy=H/2,r=Math.min(W,H)*0.37;
+  if(fBZ){
+    ctx.strokeStyle='rgba(167,139,250,0.35)';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);
+    ctx.strokeRect(cx-r*1.08,cy-r*1.08,r*2.16,r*2.16);ctx.setLineDash([]);
+  }
+  if(fKG){
+    const step=r/4;
+    for(let i=-5;i<=5;i++){for(let j=-5;j<=5;j++){
+      const px=cx+i*step,py=cy+j*step;
+      const ins=(i*step)*(i*step)+(j*step)*(j*step)<=r*r;
+      ctx.beginPath();ctx.arc(px,py,2,0,Math.PI*2);
+      ctx.fillStyle=ins?'rgba(0,229,255,0.75)':'rgba(30,45,71,0.9)';ctx.fill();
+    }}
+  }
+  if(fFL){
+    const g=ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+    g.addColorStop(0,'rgba(0,229,255,0.13)');g.addColorStop(1,'rgba(0,229,255,0.03)');
+    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+  }
+  ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
+  ctx.strokeStyle='#00e5ff';ctx.lineWidth=2.5;ctx.shadowColor='#00e5ff';ctx.shadowBlur=8;
+  ctx.stroke();ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(100,116,139,0.8)';ctx.font='11px Courier New';
+  ctx.fillText('kₓ',W-18,cy-4);ctx.fillText('kᵧ',cx+4,14);
+  ctx.fillStyle='rgba(0,229,255,0.8)';ctx.fillText('k_F',cx+r+4,cy+13);
+}
+
+function draw3D(){
+  const cv=document.getElementById('c3D');
+  if(!cv) return;
+  const W=cv.width,H=cv.height;
+  const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,W,H);ctx.fillStyle='#111827';ctx.fillRect(0,0,W,H);
+  const cx=W/2,cy=H/2,r=Math.min(W,H)*0.34;
+  const rx=f3Dang.x,ry=f3Dang.y;
+  function proj(px,py,pz){
+    const y2=py*Math.cos(rx)-pz*Math.sin(rx),z2=py*Math.sin(rx)+pz*Math.cos(rx);
+    const x3=px*Math.cos(ry)+z2*Math.sin(ry),z3=-px*Math.sin(ry)+z2*Math.cos(ry);
+    return{x:cx+x3*r,y:cy-y2*r,z:z3};
+  }
+  const N=22;
+  for(let la=-80;la<=80;la+=20){
+    const a=la*Math.PI/180,ca=Math.cos(a),sa=Math.sin(a);
+    const pts=[];
+    for(let i=0;i<=N;i++){const lo=i/N*2*Math.PI;pts.push(proj(ca*Math.cos(lo),sa,ca*Math.sin(lo)));}
+    ctx.beginPath();pts.forEach(function(p,i){i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);});
+    const az=pts.reduce(function(s,p){return s+p.z;},0)/pts.length;
+    ctx.strokeStyle='rgba(0,229,255,'+(0.1+0.35*(az+1)/2).toFixed(2)+')';
+    ctx.lineWidth=1;ctx.stroke();
+  }
+  for(let lo=0;lo<360;lo+=20){
+    const a=lo*Math.PI/180;
+    const pts=[];
+    for(let i=0;i<=N;i++){const la2=i/N*Math.PI-Math.PI/2;pts.push(proj(Math.cos(la2)*Math.cos(a),Math.sin(la2),Math.cos(la2)*Math.sin(a)));}
+    ctx.beginPath();pts.forEach(function(p,i){i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);});
+    const az=pts.reduce(function(s,p){return s+p.z;},0)/pts.length;
+    ctx.strokeStyle='rgba(167,139,250,'+(0.08+0.28*(az+1)/2).toFixed(2)+')';
+    ctx.lineWidth=0.8;ctx.stroke();
+  }
+  const g=ctx.createRadialGradient(cx-r*0.2,cy-r*0.2,r*0.1,cx,cy,r*1.1);
+  g.addColorStop(0,'rgba(0,229,255,0.06)');g.addColorStop(1,'transparent');
+  ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();
+  [['kₓ',[1,0,0]],['kᵧ',[0,1,0]],['k_z',[0,0,1]]].forEach(function(pair){
+    const p=proj(pair[1][0]*1.3,pair[1][1]*1.3,pair[1][2]*1.3);
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(p.x,p.y);
+    ctx.strokeStyle='rgba(100,116,139,0.4)';ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle='rgba(100,116,139,0.7)';ctx.font='10px Courier New';
+    ctx.fillText(pair[0],p.x+2,p.y);
+  });
+  ctx.fillStyle='rgba(100,116,139,0.5)';ctx.font='9px Courier New';
+  ctx.fillText('drag to rotate',6,H-6);
+}
+
+(function(){
+  const c=document.getElementById('c3D');
+  if(!c) return;
+  c.addEventListener('mousedown',function(e){f3Ddr.on=true;f3Ddr.lx=e.clientX;f3Ddr.ly=e.clientY;c.style.cursor='grabbing';});
+  window.addEventListener('mouseup',function(){f3Ddr.on=false;const c3=document.getElementById('c3D');if(c3)c3.style.cursor='grab';});
+  window.addEventListener('mousemove',function(e){
+    if(!f3Ddr.on) return;
+    f3Dang.y+=(e.clientX-f3Ddr.lx)*0.01;f3Dang.x+=(e.clientY-f3Ddr.ly)*0.01;
+    f3Ddr.lx=e.clientX;f3Ddr.ly=e.clientY;draw3D();
+  });
+  c.addEventListener('touchstart',function(e){const t=e.touches[0];f3Ddr.on=true;f3Ddr.lx=t.clientX;f3Ddr.ly=t.clientY;},{passive:true});
+  c.addEventListener('touchend',function(){f3Ddr.on=false;});
+  c.addEventListener('touchmove',function(e){
+    if(!f3Ddr.on) return;e.preventDefault();
+    const t=e.touches[0];
+    f3Dang.y+=(t.clientX-f3Ddr.lx)*0.012;f3Dang.x+=(t.clientY-f3Ddr.ly)*0.012;
+    f3Ddr.lx=t.clientX;f3Ddr.ly=t.clientY;draw3D();
+  },{passive:false});
+})();
+
+// ════════════════════
+//  05 HEAT CAPACITY
+// ════════════════════
+const HM={cl:true,ei:true,db:true,el:true};
+function togHM(m,b){
+  HM[m]=!HM[m];
+  const cls={cl:'cy',ei:'or',db:'gr',el:'pu'};
+  b.classList.toggle(cls[m],HM[m]);
+  updHeat();
+}
+
+function updHeat(){
+  const tE=parseFloat(document.getElementById('he').value);
+  const tD=parseFloat(document.getElementById('hd').value);
+  const n=parseFloat(document.getElementById('hn').value)*1e28;
+  document.getElementById('he-v').textContent=tE.toFixed(0)+' K';
+  document.getElementById('hd-v').textContent=tD.toFixed(0)+' K';
+  document.getElementById('hn-v').textContent=sci(n/1e28,3)+' ×10²⁸';
+  const ef=EF(n),R=NA*kB;
+  document.getElementById('hv-cl').textContent=sci(Ccl()/R,4);
+  document.getElementById('hv-ei').textContent=sci(Ceinstein(300,tE)/R,4);
+  document.getElementById('hv-db').textContent=sci(Cdebye(300,tD)/R,4);
+  document.getElementById('hv-el').textContent=sci(Cel(300,ef)/R,4);
+  const gm=(Math.PI*Math.PI/2)*NA*kB/TF(ef)*1000;
+  document.getElementById('hv-gm').textContent=sci(gm,3)+' mJ/mol·K²';
+  document.getElementById('hv-rt').textContent=sci(Cel(300,ef)/Ccl(),3);
+
+  const Ts=linsp(2,700,250);
+  function mkD(lbl,arr,col,ex){return ds(lbl,arr,col,ex||{});}
+  const dCvT=[];
+  if(HM.cl) dCvT.push(mkD('Classical',Ts.map(function(){return Ccl()/R;}),'#60a5fa',{borderDash:[6,3]}));
+  if(HM.ei) dCvT.push(mkD('Einstein θ_E='+tE+'K',Ts.map(function(T){return Ceinstein(T,tE)/R;}),'#fb923c'));
+  if(HM.db) dCvT.push(mkD('Debye θ_D='+tD+'K',Ts.map(function(T){return Cdebye(T,tD)/R;}),'#34d399',{borderWidth:2.5}));
+  if(HM.el) dCvT.push(mkD('Electronic ×100',Ts.map(function(T){return Cel(T,ef)/R*100;}),'#a78bfa',{borderDash:[3,2]}));
+  mkChart('cCvT',{type:'line',data:{labels:Ts.map(function(x){return x.toFixed(0);}),datasets:dCvT},
+    options:baseOpt('T (K)','C / Nk_B')});
+
+  // Log
+  const Tl=logsp(2,300,200);
+  const dClog=[];
+  if(HM.ei) dClog.push(mkD('Einstein',Tl.map(function(T){return Ceinstein(T,tE)/R;}),'#fb923c'));
+  if(HM.db){
+    dClog.push(mkD('Debye',Tl.map(function(T){return Cdebye(T,tD)/R;}),'#34d399',{borderWidth:2.5}));
+    dClog.push(mkD('Debye T³ approx',Tl.map(function(T){return (12*Math.PI*Math.PI*Math.PI*Math.PI/5)*Math.pow(T/tD,3);}),'#34d399',{borderDash:[3,3],borderWidth:1.2}));
+  }
+  if(HM.el) dClog.push(mkD('Electronic γT',Tl.map(function(T){return Cel(T,ef)/R;}),'#a78bfa'));
+  const olog=baseOpt('T (K) [log]','C / Nk_B [log]');
+  olog.scales.x.type='logarithmic';olog.scales.y.type='logarithmic';
+  mkChart('cClog',{type:'line',data:{labels:Tl.map(function(x){return x.toFixed(1);}),datasets:dClog},options:olog});
+
+  // Sommerfeld plot C/T vs T²
+  const Ts2=linsp(2,80,150);
+  const gval=(Math.PI*Math.PI/2)*NA*kB/TF(ef);
+  mkChart('cCsf',{type:'line',data:{labels:Ts2.map(function(T){return (T*T).toFixed(0);}),
+    datasets:[
+      ds('(C_D+C_e)/T',Ts2.map(function(T){return (Cdebye(T,tD)+Cel(T,ef))/(R*T);}),'#60a5fa',{borderWidth:2.5}),
+      ds('C_D/T',Ts2.map(function(T){return Cdebye(T,tD)/(R*T);}),'#34d399',{borderDash:[4,3]}),
+      ds('γ = C_e/T',Ts2.map(function(){return gval/R;}),'#a78bfa',{borderDash:[2,3],borderWidth:1.5})
+    ]},options:baseOpt('T² (K²)','C/T (Nk_B/K)')});
+}
+
+// ════════════════════
+//  06 COMPARISON
+// ════════════════════
+function updCmp(){
+  const tE=240,tD=343,n=8.49e28;
+  const ef=EF(n),R=NA*kB;
+  const Ts=linsp(2,700,250);
+  mkChart('cCmpAll',{type:'line',
+    data:{labels:Ts.map(function(x){return x.toFixed(0);}),datasets:[
+      ds('Classical 3R',Ts.map(function(){return Ccl()/R;}),'#60a5fa',{borderDash:[6,3]}),
+      ds('Einstein θ_E=240K',Ts.map(function(T){return Ceinstein(T,tE)/R;}),'#fb923c'),
+      ds('Debye θ_D=343K',Ts.map(function(T){return Cdebye(T,tD)/R;}),'#34d399',{borderWidth:2.8}),
+      ds('Electronic ×30',Ts.map(function(T){return Cel(T,ef)/R*30;}),'#a78bfa',{borderDash:[4,2]})
+    ]},
+    options:(function(){const o=baseOpt('T (K)','C / Nk_B');o.scales.y.min=0;o.scales.y.max=3.5;return o;})()
+  });
+
+  const Ts2=linsp(1,500,200);
+  mkChart('cCmpCe',{type:'line',
+    data:{labels:Ts2.map(function(x){return x.toFixed(0);}),datasets:[
+      ds('Classical C_e',Ts2.map(function(){return 1.5;}),'#f87171',{borderDash:[5,3]}),
+      ds('Quantum C_e=γT',Ts2.map(function(T){return Cel(T,ef)/R;}),'#a78bfa')
+    ]},options:baseOpt('T (K)','C_e / Nk_B')});
+
+  const Tl=logsp(2,200,200);
+  const olog=baseOpt('T (K) [log]','C / Nk_B [log]');
+  olog.scales.x.type='logarithmic';olog.scales.y.type='logarithmic';
+  mkChart('cCmpT3',{type:'line',
+    data:{labels:Tl.map(function(x){return x.toFixed(1);}),datasets:[
+      ds('Einstein',Tl.map(function(T){return Ceinstein(T,tE)/R;}),'#fb923c'),
+      ds('Debye',Tl.map(function(T){return Cdebye(T,tD)/R;}),'#34d399',{borderWidth:2.5}),
+      ds('T³ law',Tl.map(function(T){return (12*Math.PI*Math.PI*Math.PI*Math.PI/5)*Math.pow(T/tD,3);}),'#34d399',{borderDash:[3,3],borderWidth:1.2})
+    ]},options:olog});
+
+  const Es=linsp(0.02,2,300);
+  const g1=Es.map(function(E){return Math.min(1/Math.sqrt(E),6);});
+  const g2=Es.map(function(){return 1;});
+  const g3=Es.map(function(E){return Math.sqrt(E);});
+  const odoc=baseOpt('E / E_F','g(E) norm.');
+  odoc.scales.y.min=0;odoc.scales.y.max=4;
+  mkChart('cCmpDOS',{type:'line',
+    data:{labels:Es.map(function(x){return x.toFixed(2);}),datasets:[
+      ds('1D ∝ E^(-½)',g1,'#f87171'),
+      ds('2D = const',g2,'#fb923c',{borderDash:[5,3]}),
+      ds('3D ∝ E^(+½)',g3,'#34d399')
+    ]},options:odoc});
+}
+
+// ════════════════════
+//  INIT
+// ════════════════════
+fdPreset('metal');
+updDrude();
+</script>
+
+<!-- ZOOM MODAL -->
+<div class="zm-bg" id="zmBg">
+  <div class="zm-box" id="zmBox">
+    <div class="zm-hdr">
+      <div class="zm-hdr-left">
+        <div class="zm-t" id="zmT">—</div>
+        <div class="zm-s" id="zmS"></div>
+      </div>
+      <button class="zm-x" id="zmX">&#x2715;</button>
+    </div>
+    <div class="zm-body" id="zmBody">
+      <canvas id="zmC" style="display:none"></canvas>
+      <canvas id="zmC2D" width="960" height="540" style="display:none;position:absolute;inset:0;width:100%!important;height:100%!important"></canvas>
+      <canvas id="zmC3D" width="960" height="540" style="display:none;position:absolute;inset:0;width:100%!important;height:100%!important;cursor:grab"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════
+   ZOOM SYSTEM
+═══════════════════════════ */
+var _ZC = null;  // zoom chart instance
+
+var ZMETA = {
+  cJE:    { t: 'J vs E — Ohm\'s Law',                   s: '電流密度 vs 電場強度' },
+  cRT:    { t: 'Resistivity \u03c1 vs T',                s: '電阻率 vs 溫度 (10\u2013900 K)' },
+  cST:    { t: 'Conductivity \u03c3 vs T',               s: '電導率隨溫度下降 (\u03c3 \u221d 1/T)' },
+  cDOS:   { t: 'Density of States g(E)',                 s: '3D 態密度 g(E) \u221d \u221aE' },
+  cGF:    { t: 'Occupied States g(E)\u00b7f(E)',         s: '佔據態分布 @ T=300K' },
+  cFD:    { t: 'Fermi-Dirac Distribution f(E)',          s: '多溫度曲線疊加' },
+  cDF:    { t: 'Spectral Weight \u2212\u2202f/\u2202E',  s: '費米面峰值 — 溫度越高越寬' },
+  cTW:    { t: 'Thermal Width \u0394E \u2248 k\u2082T',  s: '熱展寬 vs 溫度' },
+  c1D:    { t: '1D Fermi Points \u00b1k_F',             s: '一維費米點' },
+  cDOSd:  { t: 'DOS Comparison 1D / 2D / 3D',           s: '三維度態密度比較' },
+  cCvT:   { t: 'Heat Capacity C vs T',                  s: '比熱 vs 溫度 (0\u2013700K)' },
+  cClog:  { t: 'Heat Capacity C vs T \u2014 Log Scale', s: '低溫對數圖 — T\u00b3 vs 指數衰減' },
+  cCsf:   { t: 'Sommerfeld Plot C/T vs T\u00b2',        s: '截距=\u03b3 (電子)，斜率=A (聲子)' },
+  cCmpAll:{ t: 'All Heat Capacity Models',               s: 'Classical · Einstein · Debye · Electronic' },
+  cCmpCe: { t: 'Classical vs Quantum C_e',              s: '為何量子統計必要？差距 ~200 倍' },
+  cCmpT3: { t: 'Debye T\u00b3 Law Verification',        s: '低溫 T\u00b3 (Debye) vs 指數 (Einstein)' },
+  cCmpDOS:{ t: 'DOS Dimensionality Effect',              s: '1D / 2D / 3D 維度與態密度的關係' }
+};
+
+function openZoom(cid) {
+  var m = ZMETA[cid];
+  if (!m) return;
+  var src = CH[cid];
+  if (!src) return;
+
+  document.getElementById('zmT').textContent = m.t;
+  document.getElementById('zmS').textContent = m.s;
+  document.getElementById('zmBg').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  document.getElementById('zmC').style.display='block';
+  document.getElementById('zmC2D').style.display='none';
+  document.getElementById('zmC3D').style.display='none';
+  _zoom3DActive = false;
+  if (_ZC) { _ZC.destroy(); _ZC = null; }
+
+  // Deep-clone config from existing chart
+  var cfg;
+  try {
+    cfg = {
+      type: src.config.type,
+      data: JSON.parse(JSON.stringify(src.config.data)),
+      options: JSON.parse(JSON.stringify(src.config.options))
+    };
+  } catch(e) { return; }
+
+  // Larger fonts & smooth animation for modal
+  cfg.options.animation = { duration: 350 };
+  cfg.options.responsive = true;
+  cfg.options.maintainAspectRatio = false;
+
+  var pl = cfg.options.plugins;
+  if (pl && pl.legend && pl.legend.labels)
+    pl.legend.labels.font = { size: 12, family: 'Courier New' };
+
+  var sc = cfg.options.scales;
+  if (sc) {
+    ['x','y'].forEach(function(ax) {
+      if (!sc[ax]) return;
+      if (sc[ax].title) sc[ax].title.font = { size: 12, family: 'Courier New' };
+      if (sc[ax].ticks) sc[ax].ticks.font = { size: 11, family: 'Courier New' };
+    });
+  }
+
+  _ZC = new Chart(document.getElementById('zmC').getContext('2d'), cfg);
+}
+
+
+function openZoom2D() {
+  document.getElementById('zmT').textContent = '2D Fermi Circle — k-Space';
+  document.getElementById('zmS').textContent = '費米圓 · 青色=費米面 · 點=k格點 · 虛線=第一布里淵區';
+  document.getElementById('zmBg').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Draw 2D into modal canvas after modal renders
+  document.getElementById('zmC').style.display='none';
+  document.getElementById('zmC2D').style.display='block';
+  document.getElementById('zmC3D').style.display='none';
+  setTimeout(function() { draw2DonCanvas('zmC2D'); }, 30);
+}
+
+function openZoom3D() {
+  document.getElementById('zmT').textContent = '3D Fermi Sphere — k-Space';
+  document.getElementById('zmS').textContent = '費米球 · 拖曳旋轉 · 藍=緯線 · 紫=經線';
+  document.getElementById('zmBg').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  _zoom3DActive = true;
+  document.getElementById('zmC').style.display='none';
+  document.getElementById('zmC2D').style.display='none';
+  document.getElementById('zmC3D').style.display='block';
+  setTimeout(function() { draw3DonCanvas('zmC3D'); }, 30);
+}
+
+var _zoom3DActive = false;
+var _z3Ddr = {on:false, lx:0, ly:0};
+
+function draw2DonCanvas(cid) {
+  var cv = document.getElementById(cid);
+  if (!cv) return;
+  var W = cv.width, H = cv.height;
+  var ctx = cv.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#111827'; ctx.fillRect(0,0,W,H);
+  var cx = W/2, cy = H/2, r = Math.min(W,H)*0.37;
+  if (fBZ) {
+    ctx.strokeStyle='rgba(167,139,250,0.35)'; ctx.lineWidth=2; ctx.setLineDash([5,5]);
+    ctx.strokeRect(cx-r*1.08, cy-r*1.08, r*2.16, r*2.16); ctx.setLineDash([]);
+  }
+  if (fKG) {
+    var step = r/4;
+    for (var i=-6;i<=6;i++) { for (var j=-6;j<=6;j++) {
+      var px=cx+i*step, py=cy+j*step;
+      var ins=(i*step)*(i*step)+(j*step)*(j*step)<=r*r;
+      ctx.beginPath(); ctx.arc(px,py,3,0,Math.PI*2);
+      ctx.fillStyle=ins?'rgba(0,229,255,0.75)':'rgba(30,45,71,0.9)'; ctx.fill();
+    }}
+  }
+  if (fFL) {
+    var g=ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+    g.addColorStop(0,'rgba(0,229,255,0.13)'); g.addColorStop(1,'rgba(0,229,255,0.03)');
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fillStyle=g; ctx.fill();
+  }
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+  ctx.strokeStyle='#00e5ff'; ctx.lineWidth=3;
+  ctx.shadowColor='#00e5ff'; ctx.shadowBlur=12; ctx.stroke(); ctx.shadowBlur=0;
+  ctx.fillStyle='rgba(100,116,139,0.8)'; ctx.font='13px Courier New';
+  ctx.fillText('kx', W-22, cy-4); ctx.fillText('ky', cx+5, 16);
+  ctx.fillStyle='rgba(0,229,255,0.8)';
+  ctx.fillText('k_F', cx+r+5, cy+15);
+}
+
+function draw3DonCanvas(cid) {
+  var cv = document.getElementById(cid);
+  if (!cv) return;
+  var W=cv.width, H=cv.height;
+  var ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,W,H); ctx.fillStyle='#111827'; ctx.fillRect(0,0,W,H);
+  var cx=W/2, cy=H/2, r=Math.min(W,H)*0.36;
+  var rx=f3Dang.x, ry=f3Dang.y;
+  function proj(px,py,pz){
+    var y2=py*Math.cos(rx)-pz*Math.sin(rx), z2=py*Math.sin(rx)+pz*Math.cos(rx);
+    var x3=px*Math.cos(ry)+z2*Math.sin(ry), z3=-px*Math.sin(ry)+z2*Math.cos(ry);
+    return {x:cx+x3*r, y:cy-y2*r, z:z3};
+  }
+  var N=24;
+  for (var la=-80;la<=80;la+=15) {
+    var a=la*Math.PI/180, ca=Math.cos(a), sa=Math.sin(a);
+    var pts=[];
+    for (var i=0;i<=N;i++){var lo=i/N*2*Math.PI; pts.push(proj(ca*Math.cos(lo),sa,ca*Math.sin(lo)));}
+    ctx.beginPath(); pts.forEach(function(p,i){i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);});
+    var az=pts.reduce(function(s,p){return s+p.z;},0)/pts.length;
+    ctx.strokeStyle='rgba(0,229,255,'+(0.12+0.38*(az+1)/2).toFixed(2)+')';
+    ctx.lineWidth=1.2; ctx.stroke();
+  }
+  for (var lo2=0;lo2<360;lo2+=15) {
+    var a2=lo2*Math.PI/180;
+    var pts2=[];
+    for (var i2=0;i2<=N;i2++){var la2=i2/N*Math.PI-Math.PI/2; pts2.push(proj(Math.cos(la2)*Math.cos(a2),Math.sin(la2),Math.cos(la2)*Math.sin(a2)));}
+    ctx.beginPath(); pts2.forEach(function(p,i){i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);});
+    var az2=pts2.reduce(function(s,p){return s+p.z;},0)/pts2.length;
+    ctx.strokeStyle='rgba(167,139,250,'+(0.1+0.3*(az2+1)/2).toFixed(2)+')';
+    ctx.lineWidth=1; ctx.stroke();
+  }
+  var gg=ctx.createRadialGradient(cx-r*0.2,cy-r*0.2,r*0.1,cx,cy,r*1.1);
+  gg.addColorStop(0,'rgba(0,229,255,0.07)'); gg.addColorStop(1,'transparent');
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fillStyle=gg; ctx.fill();
+  [['kx',[1,0,0]],['ky',[0,1,0]],['kz',[0,0,1]]].forEach(function(pair){
+    var p=proj(pair[1][0]*1.35,pair[1][1]*1.35,pair[1][2]*1.35);
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(p.x,p.y);
+    ctx.strokeStyle='rgba(100,116,139,0.45)'; ctx.lineWidth=1.2; ctx.stroke();
+    ctx.fillStyle='rgba(100,116,139,0.75)'; ctx.font='12px Courier New';
+    ctx.fillText(pair[0],p.x+3,p.y);
+  });
+  ctx.fillStyle='rgba(100,116,139,0.5)'; ctx.font='10px Courier New';
+  ctx.fillText('drag to rotate',8,H-8);
+}
+
+function closeZoom() {
+  document.getElementById('zmBg').classList.remove('open');
+  document.body.style.overflow = '';
+  if (_ZC) { _ZC.destroy(); _ZC = null; }
+  _zoom3DActive = false;
+}
+
+
+// 3D zoom drag
+(function(){
+  var c = document.getElementById('zmC3D');
+  if (!c) return;
+  c.addEventListener('mousedown', function(e){_z3Ddr.on=true;_z3Ddr.lx=e.clientX;_z3Ddr.ly=e.clientY;c.style.cursor='grabbing';});
+  window.addEventListener('mouseup', function(){_z3Ddr.on=false;var c3=document.getElementById('zmC3D');if(c3)c3.style.cursor='grab';});
+  window.addEventListener('mousemove', function(e){
+    if(!_z3Ddr.on||!_zoom3DActive) return;
+    f3Dang.y+=(e.clientX-_z3Ddr.lx)*0.008; f3Dang.x+=(e.clientY-_z3Ddr.ly)*0.008;
+    _z3Ddr.lx=e.clientX; _z3Ddr.ly=e.clientY;
+    draw3DonCanvas('zmC3D'); draw3D();
+  });
+  c.addEventListener('touchstart',function(e){var t=e.touches[0];_z3Ddr.on=true;_z3Ddr.lx=t.clientX;_z3Ddr.ly=t.clientY;},{passive:true});
+  c.addEventListener('touchend',function(){_z3Ddr.on=false;});
+  c.addEventListener('touchmove',function(e){
+    if(!_z3Ddr.on||!_zoom3DActive) return; e.preventDefault();
+    var t=e.touches[0];
+    f3Dang.y+=(t.clientX-_z3Ddr.lx)*0.01; f3Dang.x+=(t.clientY-_z3Ddr.ly)*0.01;
+    _z3Ddr.lx=t.clientX; _z3Ddr.ly=t.clientY;
+    draw3DonCanvas('zmC3D'); draw3D();
+  },{passive:false});
+})();
+
+document.getElementById('zmBg').addEventListener('click', function(e) {
+  if (e.target === this) closeZoom();
+});
+document.getElementById('zmX').addEventListener('click', closeZoom);
+document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeZoom(); });
+
+// Inject zoom buttons into every chart card
+(function injectButtons() {
+  var SVG = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.5"/><line x1="8.7" y1="8.7" x2="13" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="3.5" y1="5.5" x2="7.5" y2="5.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="5.5" y1="3.5" x2="5.5" y2="7.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>';
+  Object.keys(ZMETA).forEach(function(cid) {
+    var canvas = document.getElementById(cid);
+    if (!canvas) return;
+    // Walk up to find .cc container
+    var cc = canvas.parentElement;
+    while (cc && !cc.classList.contains('cc')) cc = cc.parentElement;
+    if (!cc) return;
+    var btn = document.createElement('button');
+    btn.className = 'zb';
+    btn.title = '放大檢視';
+    btn.setAttribute('aria-label', '放大圖表');
+    btn.innerHTML = SVG;
+    btn.addEventListener('click', function(e) { e.stopPropagation(); openZoom(cid); });
+    cc.appendChild(btn);
+  });
+})();
+</script>
+
+</body>
+</html>
